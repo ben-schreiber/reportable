@@ -59,7 +59,7 @@ dependencies = [
 
 [[package]]
 name = "reportable"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "reportable-derive",
  "thiserror",
@@ -67,7 +67,7 @@ dependencies = [
 
 [[package]]
 name = "reportable-derive"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
