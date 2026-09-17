@@ -1,0 +1,16 @@
+[package]
+name = "reportable-derive"
+version = "0.1.0"
+edition = "2024"
+description = "Derive macro for reportable error classification"
+license = "MIT"
+readme = "README.md"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro-crate = "3"
+proc-macro2 = "1"
+quote = "1"
+syn = "2"

@@ -1,0 +1,19 @@
+[package]
+name = "reportable"
+version = "0.1.0"
+edition = "2024"
+description = "Classify errors for internal reporting or delivery to the caller"
+license = "MIT"
+readme = "README.md"
+keywords = ["error", "derive", "reporting", "observability"]
+categories = ["rust-patterns", "no-std"]
+
+[workspace]
+members = ["reportable-derive"]
+resolver = "3"
+
+[dependencies]
+reportable-derive = { version = "=0.1.0", path = "reportable-derive" }
+
+[dev-dependencies]
+thiserror = "2"
