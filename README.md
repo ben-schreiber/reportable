@@ -6,6 +6,13 @@ Declare who should receive an error's diagnostic details: your operators or the 
 error enums. It works alongside `thiserror` and does not depend on a logging framework,
 HTTP library, or error tracker. The runtime crate supports `no_std` without allocation.
 
+## Installation
+
+Requires Rust 1.85 or later. Add `reportable = "0.1"` to your dependencies.
+The derive macro is included. `thiserror = "2"` is optional and used in the example below.
+
+## Usage
+
 ```rust
 use reportable::{ReportTo, Reportable};
 
@@ -79,7 +86,8 @@ fn report_error<E: Error + Reportable + 'static>(error: &E) {
 }
 ```
 
-The Sentry tracing layer captures `ERROR` events by default; expected errors logged at
+The [Sentry tracing layer](https://docs.rs/sentry-tracing/latest/sentry_tracing/)
+captures `ERROR` events by default; expected errors logged at
 `INFO` do not create issues. They may become breadcrumbs depending on layer configuration.
 Passing `&dyn Error` preserves the error's source chain.
 
@@ -128,14 +136,14 @@ enum Error {
 ## Development
 
 ```sh
-cargo test --workspace
+cargo test --workspace --locked
 cargo fmt --all --check
-cargo clippy --workspace --all-targets -- -D warnings
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo doc --workspace --no-deps --locked
 ```
 
-The workspace contains `reportable` and its companion procedural macro crate,
-`reportable-derive`. Neither package has been published yet. Once released, consumers
-will only need to add `reportable` to their dependencies.
+CI tests stable Rust and Rust 1.85, checks a target without `std`, and verifies both
+crate archives. See the repository's `PUBLISHING.md` for release steps.
 
 ## License
 

@@ -1,0 +1,61 @@
+name: 🚀 Publish
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: 🧪 Run CI
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: 🚀 Publish to crates.io
+    needs: check
+    runs-on: ubuntu-latest
+    concurrency:
+      group: crates-io-publish
+      cancel-in-progress: false
+    steps:
+      - name: 📥 Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: 🦀 Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 🏷️ Verify release versions
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cargo metadata --no-deps --locked --format-version 1 |
+            jq -e --arg tag "${RELEASE_TAG}" '
+              (.packages[] | select(.name == "reportable")) as $root |
+              (.packages[] | select(.name == "reportable-derive")) as $derive |
+              $tag == ("v" + $root.version) and
+              $derive.version == $root.version and
+              any($root.dependencies[];
+                .name == "reportable-derive" and .req == ("=" + $root.version))
+            ' > /dev/null || {
+              echo "::error::Release tag, crate versions, and exact derive dependency must match."
+              exit 1
+            }
+
+      - name: 🚀 Publish crates
+        shell: bash
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ -z "${CARGO_REGISTRY_TOKEN}" ]; then
+            echo "::error::Set the CARGO_REGISTRY_TOKEN repository secret before publishing."
+            exit 1
+          fi
+          cargo +stable publish --workspace --locked
