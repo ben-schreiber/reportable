@@ -1,6 +1,6 @@
 [package]
 name = "reportable"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Ben Schreiber <bschreiber91@gmail.com>"]
 edition = "2024"
 rust-version = "1.85"
