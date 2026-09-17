@@ -18,7 +18,7 @@ members = ["reportable-derive"]
 resolver = "3"
 
 [dependencies]
-reportable-derive = { version = "0.1.1", path = "reportable-derive" }
+reportable-derive = { version = "=0.1.1", path = "reportable-derive" }
 
 [dev-dependencies]
 thiserror = "2"
