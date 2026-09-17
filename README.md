@@ -100,7 +100,7 @@ reporting them. Avoid a second capture through `#[instrument(err)]`, middleware,
 
 An unclassified variant is rejected:
 
-```compile_fail
+```rust,compile_fail
 use reportable::Reportable;
 
 #[derive(Reportable)]
@@ -111,7 +111,7 @@ enum Error {
 
 Delegation requires a `Reportable` field:
 
-```compile_fail
+```rust,compile_fail
 use reportable::Reportable;
 
 #[derive(Reportable)]
@@ -123,7 +123,7 @@ enum Error {
 
 Transparent variants cannot silently select one of several fields:
 
-```compile_fail
+```rust,compile_fail
 use reportable::Reportable;
 
 #[derive(Reportable)]
