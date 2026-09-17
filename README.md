@@ -142,8 +142,7 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo doc --workspace --no-deps --locked
 ```
 
-CI tests stable Rust and Rust 1.85, checks a target without `std`, and verifies both
-crate archives. See the repository's `PUBLISHING.md` for release steps.
+CI tests stable Rust and Rust 1.85, checks a target without `std`, and verifies both crate archives.
 
 ## License
 
