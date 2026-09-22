@@ -7,6 +7,9 @@ use quote::quote;
 use syn::{Attribute, Data, DeriveInput, Error, Fields, Ident, parse_macro_input, parse_quote};
 
 /// Derive error classification from `#[reportable(caller | internal | transparent)]`.
+///
+/// The attribute may be placed on the enum to set a default for every variant;
+/// a variant-level attribute overrides that default.
 #[proc_macro_derive(Reportable, attributes(reportable))]
 pub fn derive_reportable(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -28,13 +31,13 @@ fn expand(input: DeriveInput) -> syn::Result<TokenStream2> {
 }
 
 fn expand_with_path(input: DeriveInput, path: &TokenStream2) -> syn::Result<TokenStream2> {
-    reject_misplaced(&input.attrs)?;
     let Data::Enum(data) = input.data else {
         return Err(Error::new_spanned(
             input.ident,
             "Reportable only supports enums",
         ));
     };
+    let default = classification(&input.attrs, "enum")?;
 
     let mut generics = input.generics;
     let mut arms = Vec::new();
@@ -42,7 +45,14 @@ fn expand_with_path(input: DeriveInput, path: &TokenStream2) -> syn::Result<Toke
         for field in &variant.fields {
             reject_misplaced(&field.attrs)?;
         }
-        let mode = classification(&variant.attrs, &variant.ident)?;
+        let mode = classification(&variant.attrs, "variant")?
+            .or(default)
+            .ok_or_else(|| {
+                Error::new_spanned(
+                    &variant.ident,
+                    "add #[reportable(caller)], #[reportable(internal)], or #[reportable(transparent)]",
+                )
+            })?;
         let name = &variant.ident;
         let arm = match mode {
             Classification::Caller | Classification::Internal => {
@@ -104,39 +114,37 @@ fn reject_misplaced(attrs: &[Attribute]) -> syn::Result<()> {
     if let Some(attr) = attrs.iter().find(|attr| attr.path().is_ident("reportable")) {
         return Err(Error::new_spanned(
             attr,
-            "#[reportable(...)] belongs on an enum variant",
+            "#[reportable(...)] belongs on an enum or enum variant",
         ));
     }
     Ok(())
 }
 
+#[derive(Clone, Copy)]
 enum Classification {
     Caller,
     Internal,
     Transparent,
 }
 
-fn classification(attrs: &[Attribute], name: &Ident) -> syn::Result<Classification> {
+fn classification(attrs: &[Attribute], scope: &str) -> syn::Result<Option<Classification>> {
     let mut attrs = attrs
         .iter()
         .filter(|attr| attr.path().is_ident("reportable"));
-    let attr = attrs.next().ok_or_else(|| {
-        Error::new_spanned(
-            name,
-            "add #[reportable(caller)], #[reportable(internal)], or #[reportable(transparent)]",
-        )
-    })?;
+    let Some(attr) = attrs.next() else {
+        return Ok(None);
+    };
     if let Some(duplicate) = attrs.next() {
         return Err(Error::new_spanned(
             duplicate,
-            "use exactly one #[reportable(...)] annotation per variant",
+            format!("use exactly one #[reportable(...)] annotation per {scope}"),
         ));
     }
     let mode: Ident = attr.parse_args()?;
     match mode.to_string().as_str() {
-        "caller" => Ok(Classification::Caller),
-        "internal" => Ok(Classification::Internal),
-        "transparent" => Ok(Classification::Transparent),
+        "caller" => Ok(Some(Classification::Caller)),
+        "internal" => Ok(Some(Classification::Internal)),
+        "transparent" => Ok(Some(Classification::Transparent)),
         _ => Err(Error::new_spanned(
             mode,
             "expected caller, internal, or transparent",
@@ -199,11 +207,21 @@ mod tests {
             (
                 quote!(
                     #[reportable(caller)]
+                    #[reportable(internal)]
                     enum E {
                         V,
                     }
                 ),
-                "belongs on an enum variant",
+                "exactly one",
+            ),
+            (
+                quote!(
+                    #[reportable(transparent)]
+                    enum E {
+                        V,
+                    }
+                ),
+                "exactly one field",
             ),
             (
                 quote!(
@@ -212,7 +230,7 @@ mod tests {
                         V(#[reportable(caller)] u8),
                     }
                 ),
-                "belongs on an enum variant",
+                "belongs on an enum or enum variant",
             ),
             (
                 quote!(
