@@ -55,7 +55,21 @@ assert_eq!(error.report_to(), ReportTo::Internal);
 - `#[reportable(internal)]`: a failure for operators to investigate.
 - `#[reportable(transparent)]`: delegate to the wrapped field's `Reportable` implementation.
 
-Every variant needs exactly one annotation. There is no implicit or enum-level default.
+Every variant needs exactly one annotation, either directly or inherited from an enum-level
+annotation. A variant-level annotation overrides the enum-level one:
+
+```rust
+use reportable::Reportable;
+
+#[derive(Reportable)]
+#[reportable(caller)]
+enum Thing {
+    A, // caller
+    #[reportable(internal)]
+    B, // internal
+}
+```
+
 Explicit classifications accept unit, tuple, and named-field variants and do not require
 their fields to implement `Reportable`. Transparent variants require exactly one field,
 named or unnamed, whose type implements `Reportable`. Generic bounds are generated for

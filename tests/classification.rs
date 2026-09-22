@@ -88,3 +88,23 @@ fn preserves_generics_and_does_not_require_classification_of_explicit_payloads()
     fn assert_reportable<T: Reportable>() {}
     assert_reportable::<Empty>();
 }
+
+#[derive(Reportable)]
+#[reportable(caller)]
+enum Inherited {
+    A,
+    #[reportable(internal)]
+    B,
+    #[reportable(transparent)]
+    C(RepositoryError),
+}
+
+#[test]
+fn variants_inherit_enum_classification_unless_overridden() {
+    assert_eq!(Inherited::A.report_to(), ReportTo::Caller);
+    assert_eq!(Inherited::B.report_to(), ReportTo::Internal);
+    assert_eq!(
+        Inherited::C(RepositoryError::from(std::io::Error::other("offline"))).report_to(),
+        ReportTo::Internal
+    );
+}
