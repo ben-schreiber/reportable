@@ -1,0 +1,38 @@
+name: 🏷️ Tag release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tag-release
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: 🏷️ Tag Cargo.toml version
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Check out source
+        uses: actions/checkout@v7
+        with:
+          # Tags pushed with GITHUB_TOKEN do not trigger publish.yml.
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: 🏷️ Create tag if missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)"
+          test -n "${version}" || { echo "::error::No version found in Cargo.toml"; exit 1; }
+          tag="v${version}"
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" > /dev/null; then
+            echo "Tag ${tag} already exists. Nothing to do."
+            exit 0
+          fi
+          git tag "${tag}"
+          git push origin "refs/tags/${tag}"
+          echo "Created and pushed ${tag}."
