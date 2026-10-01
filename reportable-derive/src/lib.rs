@@ -8,8 +8,8 @@ use syn::{Attribute, Data, DeriveInput, Error, Fields, Ident, parse_macro_input,
 
 /// Derive error classification from `#[reportable(caller | internal | transparent)]`.
 ///
-/// The attribute may be placed on the enum to set a default for every variant;
-/// a variant-level attribute overrides that default.
+/// On a struct, the attribute classifies the whole type. On an enum, it sets a
+/// default for every variant; a variant-level attribute overrides that default.
 #[proc_macro_derive(Reportable, attributes(reportable))]
 pub fn derive_reportable(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -31,52 +31,60 @@ fn expand(input: DeriveInput) -> syn::Result<TokenStream2> {
 }
 
 fn expand_with_path(input: DeriveInput, path: &TokenStream2) -> syn::Result<TokenStream2> {
-    let Data::Enum(data) = input.data else {
-        return Err(Error::new_spanned(
-            input.ident,
-            "Reportable only supports enums",
-        ));
+    let default = classification(&input.attrs, "type")?;
+    // A struct is classified like a single variant matched by `Self`.
+    let cases = match input.data {
+        Data::Struct(data) => vec![(quote!(Self), input.ident.clone(), data.fields, None)],
+        Data::Enum(data) => data
+            .variants
+            .into_iter()
+            .map(|variant| {
+                let name = &variant.ident;
+                let mode = classification(&variant.attrs, "variant")?;
+                Ok((quote!(Self::#name), variant.ident, variant.fields, mode))
+            })
+            .collect::<syn::Result<_>>()?,
+        Data::Union(_) => {
+            return Err(Error::new_spanned(
+                input.ident,
+                "Reportable only supports structs and enums",
+            ));
+        }
     };
-    let default = classification(&input.attrs, "enum")?;
 
     let mut generics = input.generics;
     let mut arms = Vec::new();
-    for variant in data.variants {
-        for field in &variant.fields {
+    for (prefix, ident, fields, mode) in cases {
+        for field in &fields {
             reject_misplaced(&field.attrs)?;
         }
-        let mode = classification(&variant.attrs, "variant")?
-            .or(default)
-            .ok_or_else(|| {
-                Error::new_spanned(
-                    &variant.ident,
-                    "add #[reportable(caller)], #[reportable(internal)], or #[reportable(transparent)]",
-                )
-            })?;
-        let name = &variant.ident;
+        let mode = mode.or(default).ok_or_else(|| {
+            Error::new_spanned(
+                &ident,
+                "add #[reportable(caller)], #[reportable(internal)], or #[reportable(transparent)]",
+            )
+        })?;
         let arm = match mode {
             Classification::Caller | Classification::Internal => {
                 let destination = match mode {
                     Classification::Caller => quote!(#path::ReportTo::Caller),
                     _ => quote!(#path::ReportTo::Internal),
                 };
-                let pattern = match variant.fields {
-                    Fields::Unit => quote!(Self::#name),
-                    Fields::Unnamed(_) => quote!(Self::#name(..)),
-                    Fields::Named(_) => quote!(Self::#name { .. }),
+                let pattern = match fields {
+                    Fields::Unit => quote!(#prefix),
+                    Fields::Unnamed(_) => quote!(#prefix(..)),
+                    Fields::Named(_) => quote!(#prefix { .. }),
                 };
                 quote!(#pattern => #destination)
             }
             Classification::Transparent => {
-                if variant.fields.len() != 1 {
+                let mut iter = fields.iter();
+                let (Some(field), None) = (iter.next(), iter.next()) else {
                     return Err(Error::new_spanned(
-                        &variant,
+                        &ident,
                         "#[reportable(transparent)] requires exactly one field",
                     ));
-                }
-                let field = &variant.fields.iter().next().ok_or_else(|| {
-                    Error::new_spanned(&variant, "transparent variant has no field")
-                })?;
+                };
                 let ty = &field.ty;
                 generics
                     .make_where_clause()
@@ -84,8 +92,8 @@ fn expand_with_path(input: DeriveInput, path: &TokenStream2) -> syn::Result<Toke
                     .push(parse_quote!(#ty: #path::Reportable));
 
                 let pattern = match &field.ident {
-                    Some(field_name) => quote!(Self::#name { #field_name: inner }),
-                    None => quote!(Self::#name(inner)),
+                    Some(field_name) => quote!(#prefix { #field_name: inner }),
+                    None => quote!(#prefix(inner)),
                 };
                 quote!(#pattern => #path::Reportable::report_to(inner))
             }
@@ -114,7 +122,7 @@ fn reject_misplaced(attrs: &[Attribute]) -> syn::Result<()> {
     if let Some(attr) = attrs.iter().find(|attr| attr.path().is_ident("reportable")) {
         return Err(Error::new_spanned(
             attr,
-            "#[reportable(...)] belongs on an enum or enum variant",
+            "#[reportable(...)] belongs on a struct, enum, or enum variant",
         ));
     }
     Ok(())
@@ -230,15 +238,32 @@ mod tests {
                         V(#[reportable(caller)] u8),
                     }
                 ),
-                "belongs on an enum or enum variant",
+                "belongs on a struct, enum, or enum variant",
             ),
             (
                 quote!(
                     struct E;
                 ),
-                "only supports enums",
+                "add #[reportable(caller)]",
             ),
-            (quote!(union E { value: u8 }), "only supports enums"),
+            (
+                quote!(
+                    #[reportable(transparent)]
+                    struct E(u8, u8);
+                ),
+                "exactly one field",
+            ),
+            (
+                quote!(
+                    #[reportable(internal)]
+                    struct E(#[reportable(caller)] u8);
+                ),
+                "belongs on a struct",
+            ),
+            (
+                quote!(union E { value: u8 }),
+                "only supports structs and enums",
+            ),
         ];
         for (input, expected) in cases {
             let input = syn::parse2(input).unwrap();
