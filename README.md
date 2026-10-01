@@ -2,8 +2,8 @@
 
 Declare who should receive an error's diagnostic details: your operators or the caller.
 
-`reportable` provides `ReportTo`, the `Reportable` trait, and a derive macro for nested
-error enums. It works alongside `thiserror` and does not depend on a logging framework,
+`reportable` provides `ReportTo`, the `Reportable` trait, and a derive macro for error
+structs and nested error enums. It works alongside `thiserror` and does not depend on a logging framework,
 HTTP library, or error tracker. The runtime crate supports `no_std` without allocation.
 
 ## Installation
@@ -70,8 +70,19 @@ enum Thing {
 }
 ```
 
-Explicit classifications accept unit, tuple, and named-field variants and do not require
-their fields to implement `Reportable`. Transparent variants require exactly one field,
+A struct takes a single type-level annotation:
+
+```rust
+use reportable::Reportable;
+
+#[derive(Debug, thiserror::Error, Reportable)]
+#[error("Could not load the \"{0}\" integration configuration: {1}")]
+#[reportable(caller)]
+pub struct ConfigLoadError(&'static str, std::io::Error);
+```
+
+Explicit classifications accept unit, tuple, and named-field structs and variants and do not require
+their fields to implement `Reportable`. Transparent structs and variants require exactly one field,
 named or unnamed, whose type implements `Reportable`. Generic bounds are generated for
 delegated field types. References to `Reportable` values also implement the trait.
 

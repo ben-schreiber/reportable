@@ -108,3 +108,32 @@ fn variants_inherit_enum_classification_unless_overridden() {
         ReportTo::Internal
     );
 }
+
+#[derive(Debug, thiserror::Error, Reportable)]
+#[error("Could not load the \"{0}\" integration configuration: {1}")]
+#[reportable(caller)]
+struct ConfigLoadError(&'static str, std::io::Error);
+
+#[derive(Reportable)]
+#[reportable(transparent)]
+struct Wrapped {
+    source: RepositoryError,
+}
+
+#[derive(Reportable)]
+#[reportable(internal)]
+struct Marker;
+
+#[test]
+fn classifies_structs() {
+    let error = ConfigLoadError("sentry", std::io::Error::other("missing"));
+    assert_eq!(error.report_to(), ReportTo::Caller);
+    assert_eq!(
+        Wrapped {
+            source: RepositoryError::NotFound
+        }
+        .report_to(),
+        ReportTo::Caller
+    );
+    assert_eq!(Marker.report_to(), ReportTo::Internal);
+}
