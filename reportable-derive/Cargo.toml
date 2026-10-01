@@ -1,6 +1,6 @@
 [package]
 name = "reportable-derive"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Ben Schreiber <bschreiber91@gmail.com>"]
 edition = "2024"
 rust-version = "1.85"
