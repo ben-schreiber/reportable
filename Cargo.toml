@@ -19,6 +19,10 @@ resolver = "3"
 
 [dependencies]
 reportable-derive = { version = "=0.1.4", path = "reportable-derive" }
+serde = { version = "1", default-features = false, features = ["derive"], optional = true }
+
+[features]
+serde = ["dep:serde"]
 
 [dev-dependencies]
 thiserror = "2"

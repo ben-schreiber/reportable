@@ -44,13 +44,16 @@ jobs:
       - name: 🔬 Check no_std
         run: cargo +${{ matrix.toolchain }} check --lib --locked --target thumbv7em-none-eabi
 
+      - name: 🔬 Check no_std with serde
+        run: cargo +${{ matrix.toolchain }} check --lib --locked --target thumbv7em-none-eabi --features serde
+
       - name: 🎨 Check formatting
         if: matrix.toolchain == 'stable'
         run: cargo +stable fmt --all --check
 
       - name: 📎 Lint
         if: matrix.toolchain == 'stable'
-        run: cargo +stable clippy --workspace --all-targets --locked -- -D warnings
+        run: cargo +stable clippy --workspace --all-targets --all-features --locked -- -D warnings
 
       - name: 📚 Build documentation
         if: matrix.toolchain == 'stable'
