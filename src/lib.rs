@@ -10,6 +10,7 @@ pub use reportable_derive::Reportable;
 
 /// Who should receive an error's diagnostic details.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ReportTo {
     /// An internal failure for operators to investigate.
     ///
