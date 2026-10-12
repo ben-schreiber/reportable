@@ -1,6 +1,6 @@
 [package]
 name = "reportable"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Ben Schreiber <bschreiber91@gmail.com>"]
 edition = "2024"
 rust-version = "1.85"
@@ -18,7 +18,7 @@ members = ["reportable-derive"]
 resolver = "3"
 
 [dependencies]
-reportable-derive = { version = "=0.1.4", path = "reportable-derive" }
+reportable-derive = { version = "=0.1.5", path = "reportable-derive" }
 serde = { version = "1", default-features = false, features = ["derive"], optional = true }
 
 [features]
